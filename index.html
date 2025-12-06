@@ -3,8 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tabular Review</title>
+    <title>Optura AIEOS | Document Review</title>
+    <link rel="icon" type="image/svg+xml" href="/public/optura-icon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              optura: {
+                gold: '#b29c79',
+                'gold-light': '#d4c9b5',
+                'gold-dark': '#8a7759',
+                dark: '#25262a',
+                'dark-light': '#3a3b40',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
     
     <style>
@@ -23,11 +41,11 @@
         background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1; 
+        background: #b29c79;
         border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8; 
+        background: #8a7759;
       }
       /* Highlighting */
       mark {
@@ -49,7 +67,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-white text-slate-900 overflow-hidden h-screen w-screen selection:bg-indigo-100 selection:text-indigo-900">
+  <body class="bg-white text-slate-900 overflow-hidden h-screen w-screen selection:bg-optura-gold/20 selection:text-optura-dark">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

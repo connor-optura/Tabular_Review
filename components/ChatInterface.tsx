@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Send, X, User } from 'lucide-react';
 import { ChatMessage, DocumentFile, Column, ExtractionResult } from '../types';
-import { analyzeDataWithChat } from '../services/geminiService';
+import { analyzeDataWithChat } from '../services/llmService';
 
 interface ChatInterfaceProps {
   documents: DocumentFile[];
@@ -82,9 +82,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-white border-l border-slate-200 shadow-xl">
-       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-indigo-50/30">
+       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-optura-gold/5">
         <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-100 rounded-md text-indigo-600">
+            <div className="p-1.5 bg-optura-gold/20 rounded-md text-optura-dark">
                 <Bot className="w-5 h-5" />
             </div>
             <div>
@@ -108,12 +108,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex gap-2 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-optura-dark text-white' : 'bg-optura-gold text-white'}`}>
                  {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
               <div className={`p-3 rounded-2xl text-sm shadow-sm overflow-hidden ${
-                msg.role === 'user' 
-                  ? 'bg-indigo-600 text-white rounded-tr-none' 
+                msg.role === 'user'
+                  ? 'bg-optura-dark text-white rounded-tr-none'
                   : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
               }`}>
                 <div className="whitespace-pre-wrap break-words leading-relaxed">
@@ -126,7 +126,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {isTyping && (
           <div className="flex justify-start">
              <div className="flex gap-2 max-w-[85%]">
-              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-optura-gold text-white flex items-center justify-center flex-shrink-0">
                 <Bot className="w-4 h-4" />
               </div>
               <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-1">
@@ -148,12 +148,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="e.g., Which side letter has the most favourable coinvestment clause?"
-            className="w-full bg-slate-100 border-none rounded-full py-3 pl-4 pr-12 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+            className="w-full bg-slate-100 border-none rounded-full py-3 pl-4 pr-12 text-sm focus:ring-2 focus:ring-optura-gold focus:bg-white transition-all"
           />
           <button 
             onClick={handleSend}
             disabled={!input.trim() || isTyping}
-            className="absolute right-2 p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-2 p-2 bg-optura-dark text-white rounded-full hover:bg-optura-dark-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>

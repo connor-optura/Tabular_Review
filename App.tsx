@@ -3,7 +3,7 @@ import { DataGrid } from './components/DataGrid';
 import { VerificationSidebar } from './components/VerificationSidebar';
 import { ChatInterface } from './components/ChatInterface';
 import { AddColumnMenu } from './components/AddColumnMenu';
-import { extractColumnData } from './services/geminiService';
+import { extractColumnData } from './services/llmService';
 import { processDocumentToMarkdown } from './services/documentProcessor';
 import { DocumentFile, Column, ExtractionResult, SidebarMode, ColumnType } from './types';
 import { MessageSquare, Table, Square, FilePlus, LayoutTemplate, ChevronDown, Zap, Cpu, Brain, Trash2, Play, Download, WrapText, Loader2 } from './components/Icons';
@@ -11,9 +11,9 @@ import { SAMPLE_COLUMNS } from './utils/sampleData';
 
 // Available Models
 const MODELS = [
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Deepest Reasoning', icon: Brain },
-  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', description: 'Balanced', icon: Cpu },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fastest', icon: Zap },
+  { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'Best Quality', icon: Brain },
+  { id: 'anthropic/claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet', description: 'Balanced', icon: Cpu },
+  { id: 'anthropic/claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku', description: 'Fastest', icon: Zap },
 ];
 
 const App: React.FC = () => {
@@ -419,7 +419,9 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="relative z-50 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 shadow-sm">
           <div className="flex items-center gap-4 min-w-0">
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight whitespace-nowrap">Tabular Review</h1>
+            <div className="flex items-center gap-2">
+              <img src="/public/optura-logo.svg" alt="Optura" className="h-6" />
+            </div>
             <div className="h-4 w-px bg-slate-300 mx-2 flex-shrink-0"></div>
             {isEditingProjectName ? (
               <input
@@ -430,7 +432,7 @@ const App: React.FC = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') setIsEditingProjectName(false);
                 }}
-                className="text-sm font-medium text-slate-800 border-b border-indigo-500 outline-none bg-transparent min-w-[150px]"
+                className="text-sm font-medium text-slate-800 border-b border-optura-gold outline-none bg-transparent min-w-[150px]"
                 autoFocus
               />
             ) : (
@@ -448,8 +450,8 @@ const App: React.FC = () => {
              <button 
                 onClick={toggleChat}
                 className={`flex items-center gap-2 px-3 py-1.5 border border-slate-200 text-xs font-semibold rounded-md transition-all active:scale-95 ${
-                  sidebarMode === 'chat' 
-                  ? 'bg-indigo-50 text-indigo-600 border-indigo-200' 
+                  sidebarMode === 'chat'
+                  ? 'bg-optura-gold/10 text-optura-dark border-optura-gold/30'
                   : 'bg-white hover:bg-slate-50 text-slate-600'
                 }`}
                 title="AI Analyst"
@@ -492,8 +494,8 @@ const App: React.FC = () => {
              <button 
                 onClick={() => setIsTextWrapEnabled(!isTextWrapEnabled)}
                 className={`flex items-center gap-2 px-3 py-1.5 border border-slate-200 text-xs font-semibold rounded-md transition-all active:scale-95 ${
-                  isTextWrapEnabled 
-                  ? 'bg-indigo-50 text-indigo-600 border-indigo-200' 
+                  isTextWrapEnabled
+                  ? 'bg-optura-gold/10 text-optura-dark border-optura-gold/30'
                   : 'bg-white hover:bg-slate-50 text-slate-600'
                 }`}
                 title="Toggle Text Wrap"
@@ -511,7 +513,7 @@ const App: React.FC = () => {
              >
                 {isConverting ? (
                     <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-optura-gold" />
                         <span>Converting...</span>
                     </>
                 ) : (
@@ -529,7 +531,7 @@ const App: React.FC = () => {
                 <button 
                 onClick={() => !isProcessing && setIsModelMenuOpen(!isModelMenuOpen)}
                 disabled={isProcessing}
-                className={`flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 transition-all ${!isProcessing ? 'hover:bg-indigo-100 active:scale-95' : 'opacity-60 cursor-not-allowed'}`}
+                className={`flex items-center gap-2 px-3 py-1.5 bg-optura-gold/10 text-optura-dark rounded-md border border-optura-gold/20 transition-all ${!isProcessing ? 'hover:bg-optura-gold/20 active:scale-95' : 'opacity-60 cursor-not-allowed'}`}
                 >
                   <div className="flex items-center gap-2">
                     <currentModel.icon className="w-3.5 h-3.5" />
@@ -550,7 +552,7 @@ const App: React.FC = () => {
                           setIsModelMenuOpen(false);
                         }}
                         className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${
-                          selectedModel === model.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'
+                          selectedModel === model.id ? 'bg-optura-gold/10 text-optura-dark' : 'hover:bg-slate-50 text-slate-700'
                         }`}
                       >
                         <div className={`p-1.5 rounded-md ${selectedModel === model.id ? 'bg-white shadow-sm' : 'bg-slate-100'}`}>
@@ -580,7 +582,7 @@ const App: React.FC = () => {
                 <button 
                   onClick={handleRunAnalysis}
                   disabled={documents.length === 0 || columns.length === 0}
-                  className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 text-xs font-bold rounded-md transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-1.5 bg-optura-dark hover:bg-optura-dark-light text-white border border-optura-dark text-xs font-bold rounded-md transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   Run Analysis
@@ -594,11 +596,11 @@ const App: React.FC = () => {
           {/* Conversion Overlay */}
           {isConverting && (
             <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-200">
-                <div className="bg-white p-8 rounded-2xl shadow-2xl border border-indigo-100 flex flex-col items-center max-w-md text-center">
+                <div className="bg-white p-8 rounded-2xl shadow-2xl border border-optura-gold/30 flex flex-col items-center max-w-md text-center">
                     <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-75"></div>
-                        <div className="relative bg-indigo-50 p-4 rounded-full">
-                            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                        <div className="absolute inset-0 bg-optura-gold/20 rounded-full animate-ping opacity-75"></div>
+                        <div className="relative bg-optura-gold/10 p-4 rounded-full">
+                            <Loader2 className="w-10 h-10 text-optura-gold animate-spin" />
                         </div>
                     </div>
                     <h3 className="text-xl font-bold text-slate-800 mb-2">Converting Documents</h3>

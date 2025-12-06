@@ -131,7 +131,7 @@ export const VerificationSidebar: React.FC<VerificationSidebarProps> = ({
          {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white z-10">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                <div className="p-2 bg-optura-gold/10 rounded-lg text-optura-gold">
                     <FileText className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
@@ -184,7 +184,7 @@ export const VerificationSidebar: React.FC<VerificationSidebarProps> = ({
                             {cell.quote && (
                                 <button 
                                     onClick={handleCitationClick}
-                                    className="inline-flex items-center justify-center ml-1.5 align-middle px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[10px] font-bold rounded cursor-pointer border border-indigo-200 hover:border-indigo-300 transition-all transform active:scale-95"
+                                    className="inline-flex items-center justify-center ml-1.5 align-middle px-1.5 py-0.5 bg-optura-gold/20 hover:bg-optura-gold/30 text-optura-dark text-[10px] font-bold rounded cursor-pointer border border-optura-gold/30 hover:border-optura-gold/50 transition-all transform active:scale-95"
                                     title="View in Document"
                                 >
                                     {cell.page ? `p.${cell.page}` : 'Src'}
@@ -199,7 +199,7 @@ export const VerificationSidebar: React.FC<VerificationSidebarProps> = ({
                  <FileText className="w-12 h-12 text-slate-200 mb-4" />
                  <p className="text-sm text-slate-500">Document Preview Mode</p>
                  {!isExpanded && (
-                     <button onClick={() => onExpand(true)} className="mt-4 text-indigo-600 text-xs font-bold hover:underline">
+                     <button onClick={() => onExpand(true)} className="mt-4 text-optura-gold text-xs font-bold hover:underline">
                         Open Document Viewer
                      </button>
                  )}

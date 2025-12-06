@@ -117,16 +117,16 @@ export const DataGrid: React.FC<DataGridProps> = ({
 
   return (
     <div 
-        className={`flex-1 overflow-auto bg-white border-t border-slate-200 relative transition-all duration-200 ${isDragging ? 'bg-indigo-50/30' : ''}`}
+        className={`flex-1 overflow-auto bg-white border-t border-slate-200 relative transition-all duration-200 ${isDragging ? 'bg-optura-gold/5' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-indigo-50/80 backdrop-blur-sm border-2 border-indigo-400 border-dashed m-4 rounded-xl pointer-events-none">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-optura-gold/10 backdrop-blur-sm border-2 border-optura-gold border-dashed m-4 rounded-xl pointer-events-none">
             <div className="flex flex-col items-center animate-bounce">
-                <Plus className="w-12 h-12 text-indigo-600 mb-2" />
-                <p className="text-lg font-bold text-indigo-800">Drop to add documents</p>
+                <Plus className="w-12 h-12 text-optura-gold mb-2" />
+                <p className="text-lg font-bold text-optura-dark">Drop to add documents</p>
             </div>
         </div>
       )}
@@ -152,7 +152,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
                     <div className="flex flex-col">
                         <span className="flex items-center gap-2 text-slate-700">
                             {col.name}
-                            {col.status === 'extracting' && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                            {col.status === 'extracting' && <Loader2 className="w-3 h-3 animate-spin text-optura-gold" />}
                         </span>
                     </div>
                     <button 
@@ -167,7 +167,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
                 </div>
                 {/* Resize Handle */}
                 <div 
-                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-400 group-hover:bg-slate-300 transition-colors z-20"
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-optura-gold group-hover:bg-slate-300 transition-colors z-20"
                     onMouseDown={(e) => handleResizeStart(e, col.id, col.width || 240)}
                 />
               </th>
@@ -175,7 +175,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
             <th className="p-2 border-b border-slate-200 w-16 bg-slate-50/30">
                 <button 
                     onClick={(e) => onAddColumn(e.currentTarget.getBoundingClientRect())}
-                    className="w-full h-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 rounded transition-all"
+                    className="w-full h-full flex items-center justify-center text-slate-400 hover:text-optura-gold hover:bg-optura-gold/10 rounded transition-all"
                     title="Add Column"
                 >
                     <Plus className="w-4 h-4" />
@@ -195,7 +195,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
               
               {/* Document Name Body - Sticky Left 12 */}
               <td 
-                className="p-3 border-b border-r border-slate-200 font-medium text-slate-900 bg-white group-hover:bg-slate-50 transition-colors sticky left-12 z-10 w-64 truncate shadow-[1px_0_0_0_rgba(0,0,0,0.05)] cursor-pointer hover:text-indigo-600 relative"
+                className="p-3 border-b border-r border-slate-200 font-medium text-slate-900 bg-white group-hover:bg-slate-50 transition-colors sticky left-12 z-10 w-64 truncate shadow-[1px_0_0_0_rgba(0,0,0,0.05)] cursor-pointer hover:text-optura-gold relative"
                 onClick={() => onDocClick(doc.id)}
                 title="Click to preview document"
               >
@@ -229,7 +229,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
                     <td 
                     key={`${doc.id}-${col.id}`} 
                     className={`p-3 border-b border-r border-slate-200 cursor-pointer transition-colors ${isTextWrapEnabled ? 'align-top' : 'h-14'}
-                        ${isSelected ? 'bg-indigo-50/60 ring-inset ring-2 ring-indigo-500 z-10' : 'hover:bg-slate-100/50'}
+                        ${isSelected ? 'bg-optura-gold/10 ring-inset ring-2 ring-optura-gold z-10' : 'hover:bg-slate-100/50'}
                     `}
                     onClick={() => onCellClick(doc.id, col.id)}
                     style={{ width: col.width || 240 }}

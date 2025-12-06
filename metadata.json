@@ -1,5 +1,5 @@
 {
-  "name": "Tabular Review for Lawyers",
-  "description": "An AI-powered tabular review tool for legal professionals. Ingest unstructured documents, define dynamic extraction columns, and query your data with an integrated analyst chat.",
+  "name": "Optura AIEOS Document Review",
+  "description": "The AI Operating System for Healthcare Enterprises. Orchestrate AI, all the way to ROI. Ingest unstructured documents, define dynamic extraction columns, and query your data with an integrated AI analyst.",
   "requestFramePermissions": []
 }

@@ -2,4 +2,9 @@ fastapi
 uvicorn
 python-multipart
 docling
+litellm
+pydantic
+python-dotenv
+google-auth
+google-auth-oauthlib
 
