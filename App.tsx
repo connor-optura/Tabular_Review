@@ -66,12 +66,14 @@ const App: React.FC = () => {
         const processedFiles: DocumentFile[] = [];
 
         for (const file of fileList) {
-          // Use local deterministic processor (markitdown style)
-          const markdownContent = await processDocumentToMarkdown(file);
+          // Use local deterministic processor with RAG indexing
+          const result = await processDocumentToMarkdown(file);
           
           // Encode to Base64 to match our storage format (mimicking the sample data structure)
           // This keeps the rest of the app (which expects base64 strings for "content") happy
-          const contentBase64 = btoa(unescape(encodeURIComponent(markdownContent)));
+          const contentBase64 = btoa(unescape(encodeURIComponent(result.markdown)));
+
+          console.log(`Indexed "${file.name}" as ${result.docId} with ${result.chunkCount} chunks`);
 
           processedFiles.push({
             id: Math.random().toString(36).substring(2, 9),
@@ -79,7 +81,8 @@ const App: React.FC = () => {
             type: file.type,
             size: file.size,
             content: contentBase64,
-            mimeType: 'text/markdown' // Force to markdown so the viewer treats it as text
+            mimeType: 'text/markdown', // Force to markdown so the viewer treats it as text
+            docId: result.docId, // Store backend doc ID for RAG-powered extraction
           });
         }
 

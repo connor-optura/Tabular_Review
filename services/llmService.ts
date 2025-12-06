@@ -53,24 +53,38 @@ export const extractColumnData = async (
   modelId: string
 ): Promise<ExtractionCell> => {
   return withRetry(async () => {
-    // Decode Base64 to get the text
-    let docText = "";
-    try {
-      docText = decodeURIComponent(escape(atob(doc.content)));
-    } catch (e) {
-      docText = atob(doc.content);
+    // Build request body - prefer doc_id for RAG mode, fallback to full text
+    const requestBody: Record<string, unknown> = {
+      column_name: column.name,
+      column_type: column.type,
+      prompt: column.prompt,
+      model: modelId,
+    };
+
+    if (doc.docId) {
+      // Use RAG mode with doc_id (much more efficient for large docs)
+      requestBody.doc_id = doc.docId;
+      console.log(
+        `[RAG] Extracting "${column.name}" using indexed doc: ${doc.docId}`
+      );
+    } else {
+      // Fallback: Decode Base64 and send full text
+      let docText = "";
+      try {
+        docText = decodeURIComponent(escape(atob(doc.content)));
+      } catch (e) {
+        docText = atob(doc.content);
+      }
+      requestBody.document_text = docText;
+      console.log(
+        `[Legacy] Extracting "${column.name}" with full document text`
+      );
     }
 
     const response = await fetch(`${API_BASE}/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        document_text: docText,
-        column_name: column.name,
-        column_type: column.type,
-        prompt: column.prompt,
-        model: modelId,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

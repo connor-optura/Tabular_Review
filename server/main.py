@@ -2,12 +2,24 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from docling.document_converter import DocumentConverter
 from pydantic import BaseModel, Field
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict, Any
 from dotenv import load_dotenv
 import tempfile
 import os
 import shutil
 import litellm
+import hashlib
+import uuid
+import numpy as np
+
+# Import chunking module for RAG
+from chunking import (
+    chunk_document,
+    generate_embeddings,
+    retrieve_relevant_chunks,
+    build_bm25_index,
+    preload_models,
+)
 
 # Load environment variables from .env file (check both server/ and project root)
 load_dotenv()  # Current directory
@@ -37,6 +49,31 @@ app.add_middleware(
 converter = DocumentConverter()
 
 
+# ============== Document Index (In-Memory RAG Store) ==============
+# In production, use Redis or a vector database like Pinecone/Weaviate
+
+document_index: Dict[str, Dict[str, Any]] = {}
+extraction_cache: Dict[str, Dict[str, Any]] = {}
+
+
+# Preload RAG models at startup for faster first request
+@app.on_event("startup")
+async def startup_event():
+    """Preload embedding and reranking models."""
+    print("Preloading RAG models...")
+    preload_models()
+
+
+def generate_doc_id(filename: str) -> str:
+    """Generate a unique document ID."""
+    return f"{uuid.uuid4().hex[:8]}_{filename.replace(' ', '_')[:20]}"
+
+
+def get_cache_key(doc_id: str, column_prompt: str, model: str) -> str:
+    """Generate cache key for extraction results."""
+    return hashlib.md5(f"{doc_id}:{column_prompt}:{model}".encode()).hexdigest()
+
+
 # ============== Pydantic Models ==============
 
 
@@ -60,7 +97,10 @@ class ExtractionResponse(BaseModel):
 
 
 class ExtractionRequest(BaseModel):
-    document_text: str
+    document_text: Optional[str] = (
+        None  # Full text fallback (for backwards compatibility)
+    )
+    doc_id: Optional[str] = None  # Document ID for RAG lookup
     column_name: str
     column_type: str
     prompt: str
@@ -107,7 +147,38 @@ async def convert_document(file: UploadFile = File(...)):
             result = converter.convert(tmp_path)
             # Export to markdown
             markdown_content = result.document.export_to_markdown()
-            return {"markdown": markdown_content}
+
+            # === RAG INDEXING ===
+            # Generate unique document ID
+            doc_id = generate_doc_id(file.filename or "document")
+
+            # Chunk the document
+            chunks = chunk_document(markdown_content)
+
+            # Generate embeddings for all chunks
+            embeddings = generate_embeddings(chunks)
+
+            # Build BM25 index for keyword search
+            bm25_index = build_bm25_index(chunks)
+
+            # Store in document index
+            document_index[doc_id] = {
+                "chunks": chunks,
+                "embeddings": embeddings,
+                "bm25_index": bm25_index,
+                "markdown": markdown_content,
+                "filename": file.filename,
+            }
+
+            print(
+                f"Indexed document '{file.filename}' as '{doc_id}' with {len(chunks)} chunks (hybrid search enabled)"
+            )
+
+            return {
+                "markdown": markdown_content,
+                "doc_id": doc_id,
+                "chunk_count": len(chunks),
+            }
         finally:
             # Clean up the temporary file
             if os.path.exists(tmp_path):
@@ -121,91 +192,184 @@ async def convert_document(file: UploadFile = File(...)):
 # ============== LLM Endpoints ==============
 
 
-@app.post("/extract")
-async def extract_column_data(request: ExtractionRequest):
-    """Extract structured data from a document using LiteLLM with structured outputs."""
-    try:
-        # Format instruction based on column type
-        format_instructions = {
-            "date": "Format the date as YYYY-MM-DD.",
-            "boolean": "Return 'true' or 'false' as the value string.",
-            "number": "Return a clean number string, removing currency symbols if needed.",
-            "list": "Return the items as a comma-separated string.",
-        }
-        format_instruction = format_instructions.get(
-            request.column_type, "Keep the text concise."
-        )
+async def perform_extraction(
+    document_text: str,
+    page_context: str,
+    column_name: str,
+    column_type: str,
+    extraction_prompt: str,
+    model: str,
+) -> dict:
+    """Core extraction logic - separated for reuse in retry."""
+    import json
 
-        prompt = f"""Extract specific information from the provided document.
+    # Format instruction based on column type
+    format_instructions = {
+        "date": "Format the date as YYYY-MM-DD.",
+        "boolean": "Return 'true' or 'false' as the value string.",
+        "number": "Return a clean number string, removing currency symbols if needed.",
+        "list": "Return the items as a comma-separated string.",
+    }
+    format_instruction = format_instructions.get(column_type, "Keep the text concise.")
 
-DOCUMENT CONTENT:
-{request.document_text}
+    prompt = f"""Extract specific information from the provided document excerpts.
 
-Column Name: "{request.column_name}"
-Extraction Instruction: {request.prompt}
+RELEVANT DOCUMENT SECTIONS:
+{document_text}
+{page_context}
+
+Column Name: "{column_name}"
+Extraction Instruction: {extraction_prompt}
 
 Format Requirements:
 - {format_instruction}
 - Provide a confidence score (High/Medium/Low).
 - Include the exact quote from the text where the answer is found.
-- Provide a brief reasoning for your extraction."""
+- Provide a brief reasoning for your extraction.
+- If the information is not found in the provided sections, state that clearly and set confidence to Low."""
 
-        response = litellm.completion(
-            model=request.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a precise data extraction agent. Extract data exactly as requested from the document.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            response_format=ExtractionResponse,
-        )
+    response = await litellm.acompletion(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a precise data extraction agent. Extract data exactly as requested from the document sections provided.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        response_format=ExtractionResponse,
+    )
 
-        # LiteLLM returns the parsed Pydantic model in message.content when using response_format
-        result = response.choices[0].message.content
+    result = response.choices[0].message.content
 
-        # Handle both string (needs parsing) and already-parsed responses
-        if isinstance(result, str):
-            import json
+    if isinstance(result, str):
+        parsed = json.loads(result)
+        return {
+            "value": str(parsed.get("value", "")),
+            "confidence": parsed.get("confidence", "Low"),
+            "quote": parsed.get("quote", ""),
+            "page": parsed.get("page", 1),
+            "reasoning": parsed.get("reasoning", ""),
+        }
+    else:
+        return {
+            "value": str(
+                result.get("value", "")
+                if isinstance(result, dict)
+                else getattr(result, "value", "")
+            ),
+            "confidence": (
+                result.get("confidence", "Low")
+                if isinstance(result, dict)
+                else getattr(result, "confidence", "Low")
+            ),
+            "quote": (
+                result.get("quote", "")
+                if isinstance(result, dict)
+                else getattr(result, "quote", "")
+            ),
+            "page": (
+                result.get("page", 1)
+                if isinstance(result, dict)
+                else getattr(result, "page", 1)
+            ),
+            "reasoning": (
+                result.get("reasoning", "")
+                if isinstance(result, dict)
+                else getattr(result, "reasoning", "")
+            ),
+        }
 
-            parsed = json.loads(result)
-            return {
-                "value": str(parsed.get("value", "")),
-                "confidence": parsed.get("confidence", "Low"),
-                "quote": parsed.get("quote", ""),
-                "page": parsed.get("page", 1),
-                "reasoning": parsed.get("reasoning", ""),
-            }
+
+@app.post("/extract")
+async def extract_column_data(request: ExtractionRequest):
+    """Extract structured data from a document using LiteLLM with structured outputs.
+
+    Features:
+    - RAG mode with hybrid search (semantic + keyword)
+    - Cross-encoder reranking for precision
+    - Auto-retry with more context on low confidence
+    """
+    try:
+        # Check cache first
+        if request.doc_id:
+            cache_key = get_cache_key(request.doc_id, request.prompt, request.model)
+            if cache_key in extraction_cache:
+                print(f"Cache hit for {request.column_name}")
+                return extraction_cache[cache_key]
+
+        # === RAG MODE: Retrieve relevant chunks ===
+        extraction_result = None
+
+        if request.doc_id and request.doc_id in document_index:
+            indexed = document_index[request.doc_id]
+            query = f"{request.column_name}: {request.prompt}"
+
+            # First attempt: 5 chunks
+            for attempt, top_k in enumerate([5, 10], start=1):
+                relevant_chunks = retrieve_relevant_chunks(
+                    query,
+                    indexed["chunks"],
+                    indexed["embeddings"],
+                    top_k=top_k,
+                    bm25_index=indexed.get("bm25_index"),
+                    use_hybrid=True,
+                    use_reranking=True,
+                )
+
+                document_text = "\n\n---\n\n".join([c["text"] for c in relevant_chunks])
+                pages = sorted(set(c["page_estimate"] for c in relevant_chunks))
+                page_context = (
+                    f"\n(Relevant sections from pages: {', '.join(map(str, pages))})"
+                )
+
+                print(
+                    f"RAG[attempt {attempt}]: {len(relevant_chunks)} chunks "
+                    f"(~{len(document_text.split())} words) for '{request.column_name}'"
+                )
+
+                extraction_result = await perform_extraction(
+                    document_text,
+                    page_context,
+                    request.column_name,
+                    request.column_type,
+                    request.prompt,
+                    request.model,
+                )
+
+                # If confidence is not Low, we're done
+                if extraction_result["confidence"] != "Low":
+                    break
+
+                # If Low confidence and we haven't retried yet, try with more chunks
+                if attempt == 1 and len(indexed["chunks"]) > 5:
+                    print(
+                        f"Low confidence for '{request.column_name}', "
+                        f"retrying with more context..."
+                    )
+
+        elif request.document_text:
+            # Fallback: Use full document text (backwards compatible)
+            extraction_result = await perform_extraction(
+                request.document_text,
+                "",
+                request.column_name,
+                request.column_type,
+                request.prompt,
+                request.model,
+            )
         else:
-            # Already a dict/model
-            return {
-                "value": str(
-                    result.get("value", "")
-                    if isinstance(result, dict)
-                    else getattr(result, "value", "")
-                ),
-                "confidence": (
-                    result.get("confidence", "Low")
-                    if isinstance(result, dict)
-                    else getattr(result, "confidence", "Low")
-                ),
-                "quote": (
-                    result.get("quote", "")
-                    if isinstance(result, dict)
-                    else getattr(result, "quote", "")
-                ),
-                "page": (
-                    result.get("page", 1)
-                    if isinstance(result, dict)
-                    else getattr(result, "page", 1)
-                ),
-                "reasoning": (
-                    result.get("reasoning", "")
-                    if isinstance(result, dict)
-                    else getattr(result, "reasoning", "")
-                ),
-            }
+            raise HTTPException(
+                status_code=400,
+                detail="Either doc_id (for indexed documents) or document_text must be provided",
+            )
+
+        # Cache the result
+        if request.doc_id:
+            cache_key = get_cache_key(request.doc_id, request.prompt, request.model)
+            extraction_cache[cache_key] = extraction_result
+
+        return extraction_result
 
     except Exception as e:
         print(f"Extraction error: {e}")
@@ -226,7 +390,7 @@ Please write a clear, effective prompt that I can send to the LLM to get the bes
 The prompt should describe what to look for and how to handle edge cases if applicable.
 Return ONLY the prompt text, no conversational filler."""
 
-        response = litellm.completion(
+        response = await litellm.acompletion(
             model=request.model,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -262,7 +426,7 @@ Instructions:
         # Add current message
         messages.append({"role": "user", "content": request.message})
 
-        response = litellm.completion(
+        response = await litellm.acompletion(
             model=request.model,
             messages=messages,
         )
