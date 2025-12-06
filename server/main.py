@@ -293,7 +293,9 @@ async def extract_column_data(request: ExtractionRequest):
     try:
         # Check cache first
         if request.doc_id:
-            cache_key = get_cache_key(request.doc_id, request.prompt, request.model)
+            cache_key = get_cache_key(
+                request.doc_id, request.column_name, request.prompt, request.model
+            )
             if cache_key in extraction_cache:
                 print(f"Cache hit for {request.column_name}")
                 return extraction_cache[cache_key]
